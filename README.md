@@ -1,2 +1,3 @@
-# eupl-template
-A repository template with EUPL-1.2 license
+# Uwmc.Ps
+
+A PowerShell module to interact with services provided by UWMC (Unlimitedworld).
