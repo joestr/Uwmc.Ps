@@ -1,0 +1,1 @@
+$env:UWMCPS_APIURL = $null -ne $env:UWMCPS_APIURL ? $env:UWMCPS_APIURL : 'https://www.unlimitedworld.de/server_api/ajax.php'
