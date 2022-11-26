@@ -13,5 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updates README.md
 - Refactors OnlinePlayers module
 - Adds PlayerVotes module
+- Includes installation and usage in README file
 
 [unreleased]: https://github.com/joestr/Uwmc.Ps/compare/e2a191631...HEAD
