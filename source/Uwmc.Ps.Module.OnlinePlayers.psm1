@@ -1,4 +1,4 @@
-class UwPlayerListEntry {
+class UwOnlinePlayer {
     [string] $HtmlDisplayName
     [string] $HexColor
     [string] $PlayerName
@@ -6,7 +6,7 @@ class UwPlayerListEntry {
     [int] $Priority
     [int] $ForumUserId
 
-    UwPlayerListEntry($HtmlDisplayName, $HexColor, $PlayerName, $PlayerUid, $Priority, $ForumUserId) {
+    UwOnlinePlayer($HtmlDisplayName, $HexColor, $PlayerName, $PlayerUid, $Priority, $ForumUserId) {
         $this.HtmlDisplayName = $HtmlDisplayName
         $this.HexColor = $HexColor
         $this.PlayerName = $PlayerName
@@ -18,26 +18,25 @@ class UwPlayerListEntry {
 
 
 function Get-OnlinePlayers {
-    [OutputType([UwPlayerListEntry])]
+    [OutputType([UwOnlinePlayer])]
     param(
-        [parameter(ParameterSetName = "seta", Mandatory = $false)][switch] $SkipPlayerUid = $false
+        [parameter(ParameterSetName = "seta", Mandatory = $false)][switch] $IncludePlayerUid = $false
     )
 
     $result = @()
 
-    $playerList = Invoke-WebRequest -Uri "$($env:UWMCPS_APIURL)?req=player_list" `
+    $onlinePlayers = Invoke-WebRequest -Uri "$($env:UWMCPS_APIURL)?req=player_list" `
     | Select-Object -ExpandProperty Content `
     | ConvertFrom-Json `
     | Select-Object -ExpandProperty data
 
-
-    foreach ($playerListEntry in $playerList) {
+    foreach ($onlinePlayer in $onlinePlayers) {
         $playerUuid = $null
-        if ($SkipPlayerUid -eq $false) {
-            $playerUuid = Invoke-WebRequest -Uri "https://api.mojang.com/users/profiles/minecraft/$($playerListEntry.playerName)" | ConvertFrom-Json | Select-Object -ExpandProperty id
+        if ($IncludePlayerUid -eq $true) {
+            $playerUuid = Invoke-WebRequest -Uri "$($env:UWMCPS_MOJANGAPIURL)/users/profiles/minecraft/$($onlinePlayer.playerName)" | ConvertFrom-Json | Select-Object -ExpandProperty id
         }
 
-        $result += [UwPlayerListEntry]::new($playerListEntry.displayName, $playerListEntry.color, $playerListEntry.playerName, $playerUuid, $playerListEntry.priority, $playerListEntry.boardId)
+        $result += [UwOnlinePlayer]::new($onlinePlayer.displayName, $onlinePlayer.color, $onlinePlayer.playerName, $playerUuid, $onlinePlayer.priority, $onlinePlayer.boardId)
     }
 
     return $result;
