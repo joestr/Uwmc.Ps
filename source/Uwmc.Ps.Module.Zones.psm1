@@ -41,7 +41,7 @@ function Get-Zones {
 
     # Cache the fetched markers to reduce load
 
-    $tempFolderPath = Join-Path $Env:Temp 'uwmc.ps'
+    $tempFolderPath = Join-Path $env:HOME '.uwmc.ps'
     if (!(Test-Path -Path $tempFolderPath)) {
         New-Item -Type Directory -Path $tempFolderPath | Out-Null
     }
@@ -53,11 +53,11 @@ function Get-Zones {
     }
 
     if ($null -eq $lastModificationDate) {
-        Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -OutFile $tempFilePath
+        Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -OutFile $tempFilePath | Out-Null
     } else {
         $utcTimestamp = ($lastModificationDate).ToUniversalTime().ToString("o"); # Convert to ISO timestamp
         $rfcUtcTimestamp = [System.DateTimeOffset]::Parse($utcTimestamp).ToString("r"); # Convert to to RFC timestamp
-        $webRequest = Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -Headers @{ 'If-Modified-Since' = $rfcUtcTimestamp } | Out-Null
+        $webRequest = Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -Headers @{ 'If-Modified-Since' = $rfcUtcTimestamp } -SkipHttpErrorCheck
 
         if ($webRequest.StatusCode -eq 304) {
             # No update
@@ -69,12 +69,17 @@ function Get-Zones {
     $zonesJson = Get-Content -Path $tempFilePath | ConvertFrom-Json
 
     $serverZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Serverzonen' | Select-Object -ExpandProperty 'areas'
-    $playerZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Spielerzonen' | Select-Object -ExpandProperty 'areas'
-    $newbieZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Neulingszonen' | Select-Object -ExpandProperty 'areas'
+    $serverZonesMember = $serverZones | Get-Member -MemberType NoteProperty
+    $serverZonesMemberCount = $serverZonesMember | Measure-Object | Select-Object -ExpandProperty Count
+    $playerZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Spielerzonen' | Select-Object -ExpandProperty 'areas' | Get-Member
+    $newbieZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Neulingszonen' | Select-Object -ExpandProperty 'areas' | Get-Member
 
-    $var = 1
-    foreach ($serverZone in $serverZones) {
-        $result += [UwZone]::new($var++, $serverZone.label, $serverZone.markup, $serverZone.x.0, $serverZone.y.0, $serverZone.x.1, $serverZone.y.1, $serverZone.ybottom, $serverZone.ytop, $serverZone.color, $serverZone.opacity, $serverZone.fillopacity, $serverZone.weight);
+
+    $serverZoneCounter = 0
+    while ($serverZoneCounter -lt $serverZonesMemberCount) {
+        $serverZone = $serverZones | Select-Object -ExpandProperty ($serverZonesMember[$serverZoneCounter]).Name
+        $result += [UwZone]::new([int]($serverZonesMember[$serverZoneCounter]).Name.Replace('uwzone_', ''), $serverZone.label, $serverZone.markup, $serverZone.x.0, $serverZone.y.0, $serverZone.x.1, $serverZone.y.1, $serverZone.ybottom, $serverZone.ytop, $serverZone.color, $serverZone.opacity, $serverZone.fillopacity, $serverZone.weight);
+        $serverZoneCounter++
     }
 
     return $result;
