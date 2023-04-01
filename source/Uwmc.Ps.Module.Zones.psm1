@@ -1,5 +1,6 @@
 class UwZone {
     [int] $Id
+    [UwZoneType] $ZoneType
     [string] $Label
     [bool] $Markup
     [int] $FirstX
@@ -12,8 +13,9 @@ class UwZone {
     [int] $Opacity
     [double] $FillOpacity
     [int] $Weight
-    UwZone($Id, $Label, $Markup, $FirstX, $FirstY, $SecondX, $SecondY, $YBottom, $YTop, $Color, $Opacity, $FillOpacity, $Weight) {
+    UwZone($Id, $ZoneType, $Label, $Markup, $FirstX, $FirstY, $SecondX, $SecondY, $YBottom, $YTop, $Color, $Opacity, $FillOpacity, $Weight) {
         $this.Id = $Id
+        $this.ZoneType = $ZoneType
         $this.Label = $Label
         $this.Markup = $Markup
         $this.FirstX = $FirstX
@@ -29,15 +31,21 @@ class UwZone {
     }
 }
 
+enum UwZoneType {
+    PlayerZone = 1
+    ServerZone = 2
+    NewbieZone = 3
+}
 
 function Get-Zones {
     [OutputType([UwZone])]
     param(
+        [parameter(ParameterSetName = "SetA", Mandatory = $false)][switch] $IncludePlayerUid = $false
     )
 
     $result = @()
 
-    $tempZonesFile = $null
+    $tempDynMapMarker = $null
 
     # Cache the fetched markers to reduce load
 
@@ -46,10 +54,10 @@ function Get-Zones {
         New-Item -Type Directory -Path $tempFolderPath | Out-Null
     }
 
-    $tempFilePath = Join-Path $tempFolderPath 'zones.json'
+    $tempFilePath = Join-Path $tempFolderPath 'zones_dynmap.json'
     if (Test-Path -Path $tempFilePath) {
-        $tempZonesFile = Get-ChildItem -Path $tempFilePath
-        $lastModificationDate = $tempZonesFile.LastWriteTime
+        $tempDynMapMarker = Get-ChildItem -Path $tempFilePath
+        $lastModificationDate = $tempDynMapMarker.LastWriteTime
     }
 
     if ($null -eq $lastModificationDate) {
@@ -66,20 +74,53 @@ function Get-Zones {
         }
     }
 
-    $zonesJson = Get-Content -Path $tempFilePath | ConvertFrom-Json
+    $tempZonesFile = Join-Path $tempFolderPath 'zones_parsed.json'
 
-    $serverZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Serverzonen' | Select-Object -ExpandProperty 'areas'
-    $serverZonesMember = $serverZones | Get-Member -MemberType NoteProperty
-    $serverZonesMemberCount = $serverZonesMember | Measure-Object | Select-Object -ExpandProperty Count
-    $playerZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Spielerzonen' | Select-Object -ExpandProperty 'areas' | Get-Member
-    $newbieZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Neulingszonen' | Select-Object -ExpandProperty 'areas' | Get-Member
+    if ($null -eq $lastModificationDate -or $lastModificationDate -lt $tempDynMapMarker.LastWriteTime -or !(Test-Path -Path $tempZonesFile)) {
+        $zonesJson = Get-Content -Path $tempFilePath | ConvertFrom-Json
 
+        $serverZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Serverzonen' | Select-Object -ExpandProperty 'areas'
+        $playerZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Spielerzonen' | Select-Object -ExpandProperty 'areas'
+        $newbieZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Neulingszonen' | Select-Object -ExpandProperty 'areas'
+    
+        Get-UwZoneObjectsFromAreasJson -AreasJson $serverZones -ZoneType ServerZone | ForEach-Object {
+            $result += $_
+        }
+    
+        Get-UwZoneObjectsFromAreasJson -AreasJson $playerZones -ZoneType PlayerZone | ForEach-Object {
+            $result += $_
+        }
+    
+        Get-UwZoneObjectsFromAreasJson -AreasJson $newbieZones -ZoneType NewbieZone | ForEach-Object {
+            $result += $_
+        }
 
-    $serverZoneCounter = 0
-    while ($serverZoneCounter -lt $serverZonesMemberCount) {
-        $serverZone = $serverZones | Select-Object -ExpandProperty ($serverZonesMember[$serverZoneCounter]).Name
-        $result += [UwZone]::new([int]($serverZonesMember[$serverZoneCounter]).Name.Replace('uwzone_', ''), $serverZone.label, $serverZone.markup, $serverZone.x.0, $serverZone.y.0, $serverZone.x.1, $serverZone.y.1, $serverZone.ybottom, $serverZone.ytop, $serverZone.color, $serverZone.opacity, $serverZone.fillopacity, $serverZone.weight);
-        $serverZoneCounter++
+        $result | ConvertTo-Json | Out-File $tempZonesFile
+    } else {
+        $result = Get-Content -Path $tempZonesFile | ConvertFrom-Json
+    }
+
+    return $result;
+}
+
+function Get-UwZoneObjectsFromAreasJson {
+    [OutputType([UwZone])]
+    param (
+        [object] $AreasJson,
+        [UwZoneType] $ZoneType
+    )
+
+    $result = @()
+
+    $areaMembers = $AreasJson | Get-Member -MemberType NoteProperty
+    $areaMembersCount = $areaMembers | Measure-Object | Select-Object -ExpandProperty Count
+
+    $areasCounter = 0
+    while ($areasCounter -lt $areaMembersCount) {
+        $zone = $AreasJson | Select-Object -ExpandProperty ($areaMembers[$areasCounter]).Name
+        $zoneId = [int]($areaMembers[$areasCounter]).Name.Replace('uwzone_', '')
+        $result += [UwZone]::new($zoneId, $ZoneType, $zone.label, $zone.markup, $zone.x.0, $zone.y.0, $zone.x.1, $zone.y.1, $zone.ybottom, $zone.ytop, $zone.color, $zone.opacity, $zone.fillopacity, $zone.weight);
+        $areasCounter++
     }
 
     return $result;
