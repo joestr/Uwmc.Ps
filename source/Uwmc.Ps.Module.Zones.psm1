@@ -3,25 +3,25 @@ class UwZone {
     [UwZoneType] $ZoneType
     [string] $Label
     [bool] $Markup
-    [int] $FirstX
-    [int] $FirstY
-    [int] $SecondX
-    [int] $SecondY
+    [double] $FirstX
+    [double] $FirstZ
+    [double] $SecondX
+    [double] $SecondZ
     [int] $YBottom
     [int] $YTop
     [string] $Color
     [int] $Opacity
     [double] $FillOpacity
     [int] $Weight
-    UwZone($Id, $ZoneType, $Label, $Markup, $FirstX, $FirstY, $SecondX, $SecondY, $YBottom, $YTop, $Color, $Opacity, $FillOpacity, $Weight) {
+    UwZone($Id, $ZoneType, $Label, $Markup, $FirstX, $FirstZ, $SecondX, $SecondZ, $YBottom, $YTop, $Color, $Opacity, $FillOpacity, $Weight) {
         $this.Id = $Id
         $this.ZoneType = $ZoneType
         $this.Label = $Label
         $this.Markup = $Markup
         $this.FirstX = $FirstX
-        $this.FirstY = $FirstY
+        $this.FirstZ = $FirstZ
         $this.SecondX = $SecondX
-        $this.SecondY = $SecondY
+        $this.SecondZ = $SecondZ
         $this.YBottom = $YBottom
         $this.YTop = $YTop
         $this.Color = $Color
@@ -117,7 +117,11 @@ function Get-UwZoneObjectsFromAreasJson {
     while ($areasCounter -lt $areaMembersCount) {
         $zone = $AreasJson | Select-Object -ExpandProperty ($areaMembers[$areasCounter]).Name
         $zoneId = [int]($areaMembers[$areasCounter]).Name.Replace('uwzone_', '')
-        $result += [UwZone]::new($zoneId, $ZoneType, $zone.label, $zone.markup, $zone.x.0, $zone.y.0, $zone.x.1, $zone.y.1, $zone.ybottom, $zone.ytop, $zone.color, $zone.opacity, $zone.fillopacity, $zone.weight);
+        $zoneFirstX = $zone.x[0]
+        $zoneFirstZ = $zone.z[0]
+        $zoneSecondX = $zone.x[1]
+        $zoneSecondZ = $zone.z[1]
+        $result += [UwZone]::new($zoneId, $ZoneType, $zone.label, $zone.markup, $zoneFirstX, $zoneFirstZ, $zoneSecondX, $zoneSecondZ, $zone.ybottom, $zone.ytop, $zone.color, $zone.opacity, $zone.fillopacity, $zone.weight);
         $areasCounter++
     }
 

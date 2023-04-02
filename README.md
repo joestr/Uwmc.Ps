@@ -32,10 +32,7 @@ Returns: An array of player votes.
 
 Commandlet: `Get-UwZones`  
 Arguments `ForceRefresh` → Forcibly renew cached content  
-Returns: An array of zones.
-
-*Example*: `Get-UwZones | Where-Object Id -EQ 101695`
-![Searching for zone with id 101695.](https://i2.paste.pics/6316a456acc60f1fa425560b92a57353.png)
+Returns: An array of zones.  
 
 *Example*: `Get-UwZones | Where-Object ZoneType -EQ 1 | Where-Object Label -Like '*TMD#1*'`
-![Searching for player zones where its label contains a wildcard match againts string 'TMD#1'.](https://i2.paste.pics/89bbe85b819702d7c60866818248b4b9.png)
+![Searching for player zones where its label contains a wildcard match againts string 'TMD#1'.](https://i2.paste.pics/eeb61ebd2b0547a1016b56ce8dcb9a99.png)
