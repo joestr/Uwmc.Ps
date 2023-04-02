@@ -40,44 +40,42 @@ enum UwZoneType {
 function Get-Zones {
     [OutputType([UwZone])]
     param(
-        [parameter(ParameterSetName = "SetA", Mandatory = $false)][switch] $IncludePlayerUid = $false
+        [parameter(ParameterSetName = "SetA", Mandatory = $false)][switch] $ForceRefresh = $false
     )
 
     $result = @()
 
-    $tempDynMapMarker = $null
+    $tempFolderPath = Join-Path $env:HOME '.uwmc.ps'
 
     # Cache the fetched markers to reduce load
-
-    $tempFolderPath = Join-Path $env:HOME '.uwmc.ps'
     if (!(Test-Path -Path $tempFolderPath)) {
         New-Item -Type Directory -Path $tempFolderPath | Out-Null
     }
 
-    $tempFilePath = Join-Path $tempFolderPath 'zones_dynmap.json'
-    if (Test-Path -Path $tempFilePath) {
-        $tempDynMapMarker = Get-ChildItem -Path $tempFilePath
-        $lastModificationDate = $tempDynMapMarker.LastWriteTime
+    $tempDynMapMarkerFilePath = Join-Path $tempFolderPath 'zones_dynmap.json'
+
+    if (Test-Path -Path $tempDynMapMarkerFilePath) {
+        $lastModificationDate = (Get-ChildItem -Path $tempDynMapMarkerFilePath).LastWriteTime
     }
 
-    if ($null -eq $lastModificationDate) {
-        Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -OutFile $tempFilePath | Out-Null
+    if ($null -eq $lastModificationDate -or $true -eq $ForceRefresh) {
+        Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -OutFile $tempDynMapMarkerFilePath | Out-Null
     } else {
         $utcTimestamp = ($lastModificationDate).ToUniversalTime().ToString("o"); # Convert to ISO timestamp
         $rfcUtcTimestamp = [System.DateTimeOffset]::Parse($utcTimestamp).ToString("r"); # Convert to to RFC timestamp
-        $webRequest = Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -Headers @{ 'If-Modified-Since' = $rfcUtcTimestamp } -SkipHttpErrorCheck
+        ($webRequest = Invoke-WebRequest -Uri "$($env:UWMCPS_ZONESURL)" -Headers @{ 'If-Modified-Since' = $rfcUtcTimestamp } -SkipHttpErrorCheck) | Out-Null
 
         if ($webRequest.StatusCode -eq 304) {
             # No update
         } elseif ($webRequest.StatusCode -eq 200) {
-            $webRequest.Content | Out-File -FilePath $tempFilePath
+            $webRequest.Content | Out-File -FilePath $tempDynMapMarkerFilePath
         }
     }
 
-    $tempZonesFile = Join-Path $tempFolderPath 'zones_parsed.json'
+    $tempZonesFilePath = Join-Path $tempFolderPath 'zones_parsed.json'
 
-    if ($null -eq $lastModificationDate -or $lastModificationDate -lt $tempDynMapMarker.LastWriteTime -or !(Test-Path -Path $tempZonesFile)) {
-        $zonesJson = Get-Content -Path $tempFilePath | ConvertFrom-Json
+    if ($null -eq $lastModificationDate -or $lastModificationDate -lt (Get-ChildItem -Path $tempDynMapMarkerFilePath).LastWriteTime -or !(Test-Path -Path $tempZonesFilePath) -or $true -eq $ForceRefresh) {
+        $zonesJson = Get-Content -Path $tempDynMapMarkerFilePath | ConvertFrom-Json
 
         $serverZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Serverzonen' | Select-Object -ExpandProperty 'areas'
         $playerZones = $zonesJson | Select-Object -ExpandProperty 'sets' | Select-Object -ExpandProperty 'Spielerzonen' | Select-Object -ExpandProperty 'areas'
@@ -95,9 +93,9 @@ function Get-Zones {
             $result += $_
         }
 
-        $result | ConvertTo-Json | Out-File $tempZonesFile
+        $result | ConvertTo-Json | Out-File $tempZonesFilePath
     } else {
-        $result = Get-Content -Path $tempZonesFile | ConvertFrom-Json
+        $result = Get-Content -Path $tempZonesFilePath | ConvertFrom-Json
     }
 
     return $result;
