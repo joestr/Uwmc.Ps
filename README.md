@@ -16,7 +16,7 @@ Commandlet: `Get-UwOnlinePlayers`
 Arguments: `-IncludePlayerUid` → tries to resolve player names to their UUID; represented in the `PlayerUid` field or else `$null`  
 Returns: An array of online players.  
 
-*Example*: `Get-UwOnlinePlayers | Where-Object -Property -LE 30`
+*Example*: `Get-UwOnlinePlayers | Where-Object -Property Priority -LE 30`
 ![Searching for players where the sorting priority is less or equal to 30.](https://i.paste.pics/8c821eff9589f665063ec44bfd84d384.png)
 
 ### Get player votes
